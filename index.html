@@ -1,0 +1,718 @@
+<div id="board-root"></div>
+<style>
+  #board-root {
+    --bg: #0B0E13;
+    --panel: #12161D;
+    --panel-alt: #161B23;
+    --border: #232A36;
+    --amber: #FFB627;
+    --amber-dim: #8A6A2A;
+    --red: #FF6B6B;
+    --red-dim: #7A3B3B;
+    --text: #ECE9E2;
+    --text-muted: #7C8494;
+    --text-faint: #4B5261;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset;
+    max-width: 100%;
+  }
+  #board-root * { box-sizing: border-box; }
+  #board-root a { color: inherit; }
+
+  .bd-header {
+    padding: 22px 24px 18px;
+    border-bottom: 1px solid var(--border);
+    background:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
+  }
+  .bd-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--amber);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .bd-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 8px 1px rgba(255,182,39,0.7);
+    flex: none;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .bd-dot.live { animation: pulse 2.2s ease-in-out infinite; }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+  .bd-title {
+    font-family: var(--mono);
+    font-size: clamp(19px, 3vw, 26px);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    margin: 0 0 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+  .bd-flap {
+    display: inline-block;
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 3px;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .bd-flap { animation: flapin 0.5s ease both; }
+  }
+  @keyframes flapin {
+    0% { transform: rotateX(90deg); opacity: 0; }
+    60% { transform: rotateX(-8deg); opacity: 1; }
+    100% { transform: rotateX(0deg); opacity: 1; }
+  }
+  .bd-sub {
+    font-size: 13px;
+    color: var(--text-muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: center;
+  }
+  .bd-sub a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
+  .bd-sub a:hover { color: var(--amber); }
+  .bd-sep { color: var(--text-faint); }
+
+  .bd-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    align-items: center;
+  }
+  .bd-search {
+    flex: 1 1 220px;
+    min-width: 160px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    outline: none;
+  }
+  .bd-search::placeholder { color: var(--text-faint); }
+  .bd-search:focus { border-color: var(--amber-dim); }
+
+  .bd-select, .bd-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    outline: none;
+    cursor: pointer;
+  }
+  .bd-select:focus, .bd-btn:focus-visible {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 2px rgba(255,182,39,0.2);
+  }
+  .bd-btn {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--amber);
+    border-color: var(--amber-dim);
+    white-space: nowrap;
+  }
+  .bd-btn:hover { background: rgba(255,182,39,0.08); }
+  .bd-btn:disabled { opacity: 0.5; cursor: default; }
+  .bd-btn .spin { animation: spin 0.9s linear infinite; display:inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .bd-status-note {
+    padding: 8px 24px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+  .bd-status-note.error { color: var(--red); }
+
+  .bd-list {
+    max-height: 620px;
+    overflow-y: auto;
+  }
+  .bd-list::-webkit-scrollbar { width: 9px; }
+  .bd-list::-webkit-scrollbar-track { background: var(--bg); }
+  .bd-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+
+  .bd-row {
+    display: grid;
+    grid-template-columns: 96px 1fr 1.3fr 130px 88px 92px;
+    gap: 10px;
+    align-items: center;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+  }
+  .bd-row:nth-child(even) { background: var(--panel); }
+  .bd-row:hover { background: var(--panel-alt); }
+  @media (prefers-reduced-motion: no-preference) {
+    .bd-row.is-new { animation: rowflap 0.6s ease both; }
+  }
+  @keyframes rowflap {
+    0% { transform: scaleY(0.4); opacity: 0; }
+    100% { transform: scaleY(1); opacity: 1; }
+  }
+
+  .bd-statuscell { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
+
+  .bd-pill {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 4px;
+    text-align: center;
+    width: fit-content;
+    white-space: nowrap;
+  }
+  .bd-pill.open { color: var(--amber); border: 1px solid var(--amber-dim); background: rgba(255,182,39,0.08); }
+  .bd-pill.closed { color: var(--red); border: 1px solid var(--red-dim); background: rgba(255,107,107,0.06); }
+
+  .bd-source-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .bd-company { font-weight: 600; color: var(--text); }
+  .bd-company.cont { font-weight: 400; font-style: italic; color: var(--text-muted); font-size: 12.5px; }
+  .bd-role { color: var(--text); }
+  .bd-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+  .bd-badge {
+    font-size: 10px;
+    color: var(--text-faint);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: var(--mono);
+    white-space: nowrap;
+  }
+  .bd-badge.new { color: var(--amber); border-color: var(--amber-dim); }
+  .bd-badge.pay { color: var(--amber); border-color: var(--amber-dim); }
+
+  .bd-loc { color: var(--text-muted); font-size: 12.5px; }
+  .bd-loc summary { cursor: pointer; color: var(--text-muted); list-style: none; }
+  .bd-loc summary::-webkit-details-marker { display: none; }
+  .bd-loc summary:hover { color: var(--amber); }
+  .bd-loc-list { margin-top: 4px; line-height: 1.5; }
+
+  .bd-date { font-family: var(--mono); color: var(--text-muted); font-size: 11.5px; }
+
+  .bd-apply {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.05em;
+    text-align: center;
+    padding: 6px 8px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 700;
+    background: var(--amber);
+    color: #1A1200;
+    white-space: nowrap;
+  }
+  .bd-apply:hover { filter: brightness(1.08); }
+  .bd-apply.disabled {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-faint);
+    cursor: default;
+  }
+
+  .bd-empty {
+    padding: 60px 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13.5px;
+  }
+
+  .bd-footer {
+    padding: 12px 24px;
+    font-size: 11.5px;
+    color: var(--text-faint);
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    line-height: 1.6;
+  }
+  .bd-footer a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
+  .bd-footer a:hover { color: var(--amber); }
+
+  /* Mobile: stack rows into cards */
+  @media (max-width: 720px) {
+    .bd-row {
+      grid-template-columns: 1fr;
+      gap: 6px;
+      padding: 14px 16px;
+    }
+    .bd-statuscell { flex-direction: row; align-items: center; }
+    .bd-header, .bd-controls, .bd-status-note, .bd-footer { padding-left: 16px; padding-right: 16px; }
+    .bd-apply { width: fit-content; padding: 7px 14px; }
+  }
+</style>
+
+<script>
+(function () {
+  const MONTHS = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+  const REFRESH_MS = 5 * 60 * 1000; // poll every 5 minutes while the tab is open
+
+  const SOURCES = [
+    {
+      id: 'vansh',
+      shortLabel: 'VANSH',
+      label: 'Vansh & Ouckah — Summer 2027 Tech Internships',
+      url: 'https://raw.githubusercontent.com/vanshb03/Summer2027-Internships/dev/README.md',
+      repoUrl: 'https://github.com/vanshb03/Summer2027-Internships'
+    },
+    {
+      id: 'speedyapply',
+      shortLabel: 'AI/ML',
+      label: 'SpeedyApply — 2027 AI College Jobs',
+      url: 'https://raw.githubusercontent.com/speedyapply/2027-AI-College-Jobs/main/README.md',
+      repoUrl: 'https://github.com/speedyapply/2027-AI-College-Jobs'
+    },
+    {
+      id: 'jobright',
+      shortLabel: 'DATA',
+      label: 'Jobright.ai — 2026 Data Analysis Internships',
+      url: 'https://raw.githubusercontent.com/jobright-ai/2026-Data-Analysis-Internship/master/README.md',
+      repoUrl: 'https://github.com/jobright-ai/2026-Data-Analysis-Internship'
+    }
+  ];
+  const SOURCE_MAP = Object.fromEntries(SOURCES.map(s => [s.id, s]));
+
+  const root = document.getElementById('board-root');
+
+  let allRows = [];
+  let prevKeys = null;
+  let lastUpdated = null;
+  let loading = true;
+  let sourceErrors = []; // [{id, message}]
+  let state = { q: '', status: 'open', source: 'all', sort: 'newest' };
+
+  function rowKey(r) {
+    return [r.sourceId, r.company, r.role, r.dateRaw, r.link || ''].join('|');
+  }
+
+  // ---------- generic markdown table extraction ----------
+  function extractTables(md) {
+    const lines = md.split('\n');
+    const tables = [];
+    for (let i = 0; i < lines.length - 1; i++) {
+      const headerLine = lines[i].trim();
+      const sepLine = (lines[i + 1] || '').trim();
+      if (/^\|.*\|$/.test(headerLine) && /^\|[\s:\-|]+\|$/.test(sepLine) && sepLine.includes('-')) {
+        const header = headerLine.split('|').slice(1, -1).map(c => c.trim().toLowerCase());
+        let j = i + 2;
+        const rows = [];
+        while (j < lines.length && /^\|.*\|$/.test(lines[j].trim())) {
+          rows.push(lines[j].trim());
+          j++;
+        }
+        tables.push({ header, rows });
+        i = j;
+      }
+    }
+    return tables;
+  }
+
+  function colIndex(header, names) {
+    for (const n of names) {
+      const idx = header.indexOf(n);
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  }
+
+  function extractCompany(cell) {
+    const trimmed = (cell || '').trim();
+    if (!trimmed || trimmed === '↳' || trimmed === '-') return { company: null, isContinuation: true };
+    let m = trimmed.match(/<strong>([\s\S]*?)<\/strong>/);
+    if (m) return { company: m[1].replace(/<[^>]+>/g, '').trim(), isContinuation: false };
+    m = trimmed.match(/\*\*\[([^\]]+)\]\([^)]+\)\*\*/);
+    if (m) return { company: m[1].trim(), isContinuation: false };
+    m = trimmed.match(/\[([^\]]+)\]\([^)]+\)/);
+    if (m) return { company: m[1].trim(), isContinuation: false };
+    return { company: trimmed.replace(/\*\*/g, '').trim(), isContinuation: false };
+  }
+
+  function extractRoleAndLink(cell) {
+    const raw = (cell || '').trim();
+    let m = raw.match(/\*\*\[([^\]]+)\]\(([^)]+)\)\*\*/);
+    if (m) return { role: m[1].trim(), link: m[2] };
+    m = raw.match(/\[([^\]]+)\]\(([^)]+)\)/);
+    if (m) return { role: m[1].trim(), link: m[2] };
+    return { role: raw, link: null };
+  }
+
+  function extractApplyLink(cell) {
+    if (!cell) return null;
+    let m = cell.match(/href="([^"]+)"/);
+    if (m) return m[1];
+    m = cell.match(/\]\(([^)]+)\)/);
+    if (m) return m[1];
+    return null;
+  }
+
+  function extractLocations(cell) {
+    if (!cell) return { locations: ['—'], locSummary: null };
+    const detailsMatch = cell.match(/<summary>([\s\S]*?)<\/summary>([\s\S]*?)<\/details>/);
+    if (detailsMatch) {
+      const summary = detailsMatch[1].replace(/\*\*/g, '').trim();
+      const locations = detailsMatch[2].split(/<\/br>|<br\s*\/?>/i).map(s => s.trim()).filter(Boolean);
+      return { locations: locations.length ? locations : ['—'], locSummary: summary };
+    }
+    const locations = cell.split(/<\/br>|<br\s*\/?>/i).map(s => s.replace(/\*\*/g, '').trim()).filter(Boolean);
+    return { locations: locations.length ? locations : ['—'], locSummary: null };
+  }
+
+  function parseAge(cell) {
+    const trimmed = (cell || '').trim();
+    const ageMatch = trimmed.match(/^(\d+)\s*d$/i);
+    if (ageMatch) return { daysAgo: parseInt(ageMatch[1], 10), raw: trimmed };
+    const dm = trimmed.match(/([A-Za-z]{3})\s+(\d{1,2})/);
+    if (dm && MONTHS.hasOwnProperty(dm[1])) {
+      const posted = new Date(2026, MONTHS[dm[1]], parseInt(dm[2], 10));
+      const today = new Date();
+      const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      let diffDays = Math.round((todayMid - posted) / 86400000);
+      if (diffDays < 0) diffDays = 0;
+      return { daysAgo: diffDays, raw: trimmed };
+    }
+    return { daysAgo: null, raw: trimmed };
+  }
+
+  function displayAge(row) {
+    if (row.daysAgo === null || row.daysAgo === undefined) return row.dateRaw || '—';
+    if (row.daysAgo === 0) return 'Today';
+    if (row.daysAgo === 1) return '1d ago';
+    return row.daysAgo + 'd ago';
+  }
+
+  function parseSourceMarkdown(md, sourceId) {
+    const tables = extractTables(md);
+    const rows = [];
+    for (const table of tables) {
+      const h = table.header;
+      const companyIdx = colIndex(h, ['company']);
+      const roleIdx = colIndex(h, ['role', 'position', 'job title']);
+      const locIdx = colIndex(h, ['location']);
+      const linkIdx = colIndex(h, ['application/link', 'posting']);
+      const dateIdx = colIndex(h, ['date posted', 'age']);
+      const salaryIdx = colIndex(h, ['salary']);
+      const workModelIdx = colIndex(h, ['work model']);
+      if (companyIdx < 0 || roleIdx < 0 || locIdx < 0) continue;
+
+      let lastCompany = '';
+      for (const line of table.rows) {
+        const cells = line.split('|').slice(1, -1).map(c => c.trim());
+        if (cells.length < h.length) continue;
+
+        const companyRes = extractCompany(cells[companyIdx]);
+        let company = companyRes.company;
+        const isContinuation = companyRes.isContinuation;
+        if (isContinuation) company = lastCompany;
+        else lastCompany = company;
+        if (!company) continue;
+
+        const roleCellRaw = cells[roleIdx];
+        const noSponsor = /🛂/.test(roleCellRaw);
+        const usCitizen = /🇺🇸/.test(roleCellRaw);
+        const lockedInRole = /🔒/.test(roleCellRaw);
+        const { role: roleParsed, link: roleEmbeddedLink } = extractRoleAndLink(roleCellRaw);
+        const role = roleParsed.replace(/🛂|🇺🇸|🔒/g, '').trim();
+
+        const degreeMatch = role.match(/-\s*(PhD|BS\/MS|Masters|Undergrad)\s*$/i);
+        const degree = degreeMatch ? degreeMatch[1] : null;
+
+        const { locations, locSummary } = extractLocations(cells[locIdx]);
+
+        let link = roleEmbeddedLink;
+        let lockedInLink = false;
+        if (linkIdx >= 0) {
+          const linkCell = cells[linkIdx];
+          lockedInLink = /🔒/.test(linkCell);
+          const extracted = extractApplyLink(linkCell);
+          if (extracted) link = extracted;
+        }
+        const isClosed = lockedInRole || lockedInLink || !link;
+
+        const dateCell = dateIdx >= 0 ? cells[dateIdx] : '';
+        const { daysAgo, raw: dateRaw } = parseAge(dateCell);
+
+        const salary = salaryIdx >= 0 ? cells[salaryIdx].trim() : null;
+        const workModel = workModelIdx >= 0 ? cells[workModelIdx].trim() : null;
+
+        rows.push({
+          sourceId, company, role, isContinuation,
+          locations, locSummary,
+          noSponsor, usCitizen, degree, salary, workModel,
+          isClosed, link, daysAgo, dateRaw
+        });
+      }
+    }
+    return rows;
+  }
+
+  function dedupeKey(row) {
+    if (!row.link) return null;
+    return row.link.split('?')[0].replace(/\/$/, '').toLowerCase();
+  }
+
+  function escapeAttr(s) {
+    return (s || '').replace(/"/g, '&quot;');
+  }
+
+  function timeAgo(d) {
+    if (!d) return 'never';
+    const s = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (s < 10) return 'just now';
+    if (s < 60) return s + 's ago';
+    const m = Math.floor(s / 60);
+    if (m < 60) return m + 'm ago';
+    const h = Math.floor(m / 60);
+    return h + 'h ago';
+  }
+
+  async function fetchAll() {
+    loading = true;
+    render();
+
+    const results = await Promise.allSettled(SOURCES.map(async (src) => {
+      const res = await fetch(src.url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const md = await res.text();
+      const rows = parseSourceMarkdown(md, src.id);
+      if (!rows.length) throw new Error('No listings found');
+      return rows;
+    }));
+
+    let merged = [];
+    const errs = [];
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled') merged = merged.concat(r.value);
+      else errs.push({ id: SOURCES[i].id, message: r.reason && r.reason.message ? r.reason.message : 'fetch failed' });
+    });
+
+    if (merged.length) {
+      // dedupe across sources by normalized apply link
+      const seen = new Set();
+      const deduped = [];
+      for (const row of merged) {
+        const key = dedupeKey(row);
+        if (key) {
+          if (seen.has(key)) continue;
+          seen.add(key);
+        }
+        deduped.push(row);
+      }
+
+      const newKeys = new Set(deduped.map(rowKey));
+      if (prevKeys) {
+        deduped.forEach(r => { r.isNew = !prevKeys.has(rowKey(r)); });
+      } else {
+        deduped.forEach(r => { r.isNew = false; });
+      }
+      prevKeys = newKeys;
+      allRows = deduped;
+      lastUpdated = new Date();
+    }
+    sourceErrors = errs;
+    loading = false;
+    render();
+  }
+
+  function applyFilters(rows) {
+    let out = rows.slice();
+    if (state.status === 'open') out = out.filter(r => !r.isClosed);
+    else if (state.status === 'closed') out = out.filter(r => r.isClosed);
+
+    if (state.source !== 'all') out = out.filter(r => r.sourceId === state.source);
+
+    const q = state.q.trim().toLowerCase();
+    if (q) {
+      out = out.filter(r => {
+        const hay = [
+          r.company, r.role, r.locations.join(' '),
+          r.degree || '', r.workModel || '', r.salary || ''
+        ].join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    if (state.sort === 'company') {
+      out.sort((a, b) => a.company.localeCompare(b.company));
+    } else if (state.sort === 'newest') {
+      out.sort((a, b) => {
+        const da = a.daysAgo === null || a.daysAgo === undefined ? Infinity : a.daysAgo;
+        const db = b.daysAgo === null || b.daysAgo === undefined ? Infinity : b.daysAgo;
+        return da - db;
+      });
+    }
+    return out;
+  }
+
+  function renderRow(r) {
+    const src = SOURCE_MAP[r.sourceId];
+    const locHtml = r.locSummary
+      ? `<details class="bd-loc"><summary>${escapeAttr(r.locSummary)}</summary><div class="bd-loc-list">${r.locations.map(escapeAttr).join('<br>')}</div></details>`
+      : `<div class="bd-loc">${escapeAttr(r.locations.join(', '))}</div>`;
+
+    const badges = [];
+    if (r.isNew) badges.push('<span class="bd-badge new">NEW</span>');
+    if (r.salary) badges.push(`<span class="bd-badge pay">${escapeAttr(r.salary)}</span>`);
+    if (r.workModel) badges.push(`<span class="bd-badge">${escapeAttr(r.workModel)}</span>`);
+    if (r.degree) badges.push(`<span class="bd-badge">${escapeAttr(r.degree)}</span>`);
+    if (r.noSponsor) badges.push('<span class="bd-badge">No sponsorship</span>');
+    if (r.usCitizen) badges.push('<span class="bd-badge">US citizen</span>');
+
+    const applyHtml = r.isClosed
+      ? `<span class="bd-apply disabled">CLOSED</span>`
+      : `<a class="bd-apply" href="${escapeAttr(r.link)}" target="_blank" rel="noopener noreferrer">APPLY →</a>`;
+
+    return `
+      <div class="bd-row ${r.isNew ? 'is-new' : ''}">
+        <div class="bd-statuscell">
+          <span class="bd-pill ${r.isClosed ? 'closed' : 'open'}">${r.isClosed ? 'CLOSED' : 'OPEN'}</span>
+          <span class="bd-source-tag">${src ? src.shortLabel : r.sourceId}</span>
+        </div>
+        <div class="bd-company ${r.isContinuation ? 'cont' : ''}">${r.isContinuation ? '↳ ' : ''}${escapeAttr(r.company)}</div>
+        <div>
+          <div class="bd-role">${escapeAttr(r.role)}</div>
+          ${badges.length ? `<div class="bd-badges">${badges.join('')}</div>` : ''}
+        </div>
+        ${locHtml}
+        <div class="bd-date">${escapeAttr(displayAge(r))}</div>
+        ${applyHtml}
+      </div>`;
+  }
+
+  function render() {
+    const filtered = loading && !allRows.length ? [] : applyFilters(allRows);
+    const openCount = allRows.filter(r => !r.isClosed).length;
+
+    const errNote = sourceErrors.length
+      ? '⚠ ' + sourceErrors.map(e => (SOURCE_MAP[e.id] ? SOURCE_MAP[e.id].shortLabel : e.id) + ' unavailable').join(', ') + ' — showing the rest'
+      : (openCount + ' open · ' + allRows.length + ' total listings');
+
+    root.innerHTML = `
+      <div class="bd-header">
+        <div class="bd-eyebrow"><span class="bd-dot live"></span> LIVE FROM 3 GITHUB REPOS · UNDERGRAD INTERNSHIPS</div>
+        <h2 class="bd-title">
+          ${'INTERNSHIP BOARD'.split('').map((c,i) => c === ' ' ? ' ' : `<span class="bd-flap" style="animation-delay:${i*18}ms">${c}</span>`).join('')}
+        </h2>
+        <div class="bd-sub">
+          <span>For undergrads · US, Canada &amp; Remote</span>
+          <span class="bd-sep">·</span>
+          <span>Sources:</span>
+          ${SOURCES.map((s, i) => `<a href="${s.repoUrl}" target="_blank" rel="noopener noreferrer">${s.shortLabel}</a>${i < SOURCES.length - 1 ? '<span class="bd-sep">+</span>' : ''}`).join('')}
+        </div>
+      </div>
+
+      <div class="bd-controls">
+        <input id="bd-search" class="bd-search" type="text" placeholder="Search company, role, or location…" value="${escapeAttr(state.q)}" />
+        <select id="bd-status" class="bd-select">
+          <option value="open" ${state.status === 'open' ? 'selected' : ''}>Open only</option>
+          <option value="all" ${state.status === 'all' ? 'selected' : ''}>All listings</option>
+          <option value="closed" ${state.status === 'closed' ? 'selected' : ''}>Closed only</option>
+        </select>
+        <select id="bd-source" class="bd-select">
+          <option value="all" ${state.source === 'all' ? 'selected' : ''}>All sources</option>
+          ${SOURCES.map(s => `<option value="${s.id}" ${state.source === s.id ? 'selected' : ''}>${s.label}</option>`).join('')}
+        </select>
+        <select id="bd-sort" class="bd-select">
+          <option value="newest" ${state.sort === 'newest' ? 'selected' : ''}>Sort: Newest</option>
+          <option value="company" ${state.sort === 'company' ? 'selected' : ''}>Sort: Company A–Z</option>
+        </select>
+        <button id="bd-refresh" class="bd-btn" ${loading ? 'disabled' : ''}>
+          <span class="${loading ? 'spin' : ''}">⟳</span> ${loading ? 'Checking…' : 'Refresh'}
+        </button>
+      </div>
+
+      <div class="bd-status-note ${sourceErrors.length ? 'error' : ''}">
+        <span>${errNote}</span>
+        <span>Checked ${timeAgo(lastUpdated)} · auto-rechecks every 5 min while this tab is open</span>
+      </div>
+
+      <div class="bd-list" id="bd-list">
+        ${
+          filtered.length
+            ? filtered.map(renderRow).join('')
+            : `<div class="bd-empty">${loading ? 'Loading current listings from all sources…' : 'No listings match your filters.'}</div>`
+        }
+      </div>
+
+      <div class="bd-footer">
+        Data parsed live from three community-maintained repos: <a href="${SOURCES[0].repoUrl}" target="_blank" rel="noopener noreferrer">${SOURCES[0].label}</a>, <a href="${SOURCES[1].repoUrl}" target="_blank" rel="noopener noreferrer">${SOURCES[1].label}</a>, and <a href="${SOURCES[2].repoUrl}" target="_blank" rel="noopener noreferrer">${SOURCES[2].label}</a>. Not affiliated with the companies listed — always verify details on the employer's own site before applying. Duplicate postings found across sources are merged into one row.
+      </div>
+    `;
+
+    document.getElementById('bd-search').addEventListener('input', (e) => {
+      state.q = e.target.value;
+      render();
+      const el = document.getElementById('bd-search');
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    });
+    document.getElementById('bd-status').addEventListener('change', (e) => {
+      state.status = e.target.value; render();
+    });
+    document.getElementById('bd-source').addEventListener('change', (e) => {
+      state.source = e.target.value; render();
+    });
+    document.getElementById('bd-sort').addEventListener('change', (e) => {
+      state.sort = e.target.value; render();
+    });
+    document.getElementById('bd-refresh').addEventListener('click', () => fetchAll());
+  }
+
+  setInterval(() => {
+    if (!loading) {
+      const note = document.querySelector('.bd-status-note span:last-child');
+      if (note) note.textContent = 'Checked ' + timeAgo(lastUpdated) + ' · auto-rechecks every 5 min while this tab is open';
+    }
+  }, 15000);
+
+  setInterval(() => {
+    if (document.visibilityState === 'visible') fetchAll();
+  }, REFRESH_MS);
+
+  render();
+  fetchAll();
+})();
+</script>
